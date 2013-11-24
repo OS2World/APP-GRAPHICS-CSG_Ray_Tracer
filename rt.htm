@@ -1,0 +1,147 @@
+<HTML>
+<HEAD>
+<TITLE>CSG Ray Tracer, original version</TITLE>
+</HEAD>
+<BODY>
+
+<H1>CSG Ray Tracer, original version</H1>
+
+<!--...sIntroduction:0:-->
+<H2>Introduction</H2>
+
+<P>This ray-tracer based on information given in "Computer Graphics, Principles
+and Practice", by Foley, vanDam, Feiner and Hughes, and Byte magazine.
+
+<P>A
+<A HREF="rtfiles.htm">document</A> is available describing the script language.
+<!--...e-->
+<!--...sCompilers etc\46\:0:-->
+<H2>Compilers etc.</H2>
+
+<P>I've compiled RT with the IBM xlc compiler under AIX,
+gcc 2.7.2.3 under Linux 2.0.30,
+and it should compile fine with any general ANSI UNIX compiler.
+
+<P>I've also used the IBM VisualAge C/C++ 3.0 compiler for OS/2,
+with CTC306, CTD302 and CTU304 fixes.
+
+<P>I've used MSVC 5.0 under Windows NT 4.0 and it works too.
+
+<P>The UNIX <CODE>makefile</CODE> relys on GNU <CODE>make</CODE>.
+If you haven't got this, you can use the <CODE>mpp</CODE> script on my
+home page to pre-process the <CODE>ifdef</CODE>s and produce a file
+suitable for your platform.
+<!--...e-->
+<!--...sPublic domain declaration:0:-->
+<H2>Public domain declaration</H2>
+
+<P>I wrote all this code in my own time on my own equiptment.
+I hereby place all this code into the public domain.
+Feel free to do whatever you like with it.
+No copyright / no royalties / no guarantees / no problem.
+Caveat Emptor.
+<!--...e-->
+<!--...sSource code:0:-->
+<H2>Source code</H2>
+
+<P>All the source code is folded using Andys Source Code Folding Editor, which
+should be available from the same place you obtained this package.
+The source is all highly portable.
+
+<P>The full source to GBM is hopefully available from the same place you
+obtained this Ray Tracer.
+By obtaining the source, versions of GBM for AIX and other 32
+bit operating systems may be easily be built.
+GBM is also highly portable.
+<!--...e-->
+<!--...sObtaining this code:0:-->
+<H2>Obtaining this code</H2>
+
+<P>This raytracer, the GBM executables, the GBM source, and Andys Source
+Code Folding Editor are best obtained via my home page :-
+
+<P>
+<UL>
+<LI><A HREF="http://www.nyangau.fsnet.co.uk/">
+             http://www.nyangau.fsnet.co.uk/</A>.
+</UL>
+
+<P>To run under OS/2, you don't need the GBM source, but you will need
+GBM itself.
+Under UNIX, you'll need the source and will compile it and RT.
+If you wish to edit/browse/appreciate the source, you'd benefit from AE.
+<!--...e-->
+<!--...sThe future\44\ the Modular Renderer:0:-->
+<H2>The future, the Modular Renderer</H2>
+
+<P>This program will no longer be supported in the future.
+It has been replaced by the "Modular Renderer".
+This is a library of C++ classes and functions which provide a superset of
+the RT functionality.
+
+<P>This means that now the full C++ language can be at your disposal to help
+build models for tracing and also for automating the generation of animations.
+It also opens the door to procedural textures and other advanced features.
+
+<P>Furthermore, MR provides other forms of rendering, such as wire-frame
+and polygon rendering, in order to provide fast previews etc..
+
+<P>It has the disadvantage that in order to perform raytracing, you have to
+write a program and compile it.
+Accordingly MR has a raytracer called RTMR, which is backwardly compatible
+with RT and implemented using MR.
+<!--...e-->
+<!--...sChange log:0:-->
+<H2>Change log</H2>
+
+<PRE>
+1/1/92		Initial general release.
+
+Various dates	Fixed assorted bugs.
+		Removed support for 16 bit systems.
+		Tidied source to make fussier compilers happy (eg: IBM C-Set++)
+		Added support for GBM based bitmap file handling.
+		Complete rewrite of colour support.
+		Added capability to handle 1,4 and 8bpp bitmap 2D textures.
+		Added capability to do 3D block texture maps.
+		Improved shape tree memory management.
+		Improved intersection list management.
+		Added resurface a shape capability.
+		Submitted to Internet.
+
+11/1/93		Removed support for non-GBM based bitmap file handling.
+		Added biplane shape to accelerate tracing.
+		Added of rendertype argument to render command.
+		Added Whitted anti-aliased rendering rendertype.
+		Added Escher perspective rendering rendertype.
+		Submitted to Internet.
+
+1/4/94		Sanitised documentation.
+		Fixed very close to zero inaccuracy problem.
+
+1/8/94		Tidied up source.
+		Added optionality of surface arguments.
+		Submitted to Internet hobbes.nmsu.edu.
+
+1/2/95		Tidied up source.
+		Now use /Gf+ /O+, prereq-ing C-Set++ with CSD 11 under OS/2.
+
+10/7/96		Changed to HTML documentation
+
+8/1/97		Move up from C-Set++ to VisualAge C++ 3.0.
+
+1/5/98		Ported to Linux using gcc 2.7.2.3.
+		Ported to Win32 using MSVC 5.0.
+
+1/2/99		Tidy up makefiles.
+		Ported to 32 bit DOS using Watcom C/C++ 10.6.
+</PRE>
+<!--...e-->
+<!--...sAuthor:0:-->
+<HR>
+This documentation was written by the RT author, Andy Key
+<ADDRESS>ak@nyangau.fsnet.co.uk</ADDRESS>
+<!--...e-->
+
+</BODY>
+</HTML>

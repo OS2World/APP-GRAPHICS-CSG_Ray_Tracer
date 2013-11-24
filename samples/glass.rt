@@ -1,0 +1,56 @@
+;
+; A glass
+;
+; This is the standard testcard and speed-trial testcase.
+;
+; us.bmp is a backdrop picture, approximately 250x200 in size.
+; Since we use xyz(0.02,0,0) and xyz(0,0.02,0) in the col_remap, the 250x100
+; pixels will cover approximately 5 by 4 units.
+;
+
+set_col col_white col(rgb(1,1,1))
+
+set_col col_wall col_remap(xyz(0,0,0),xyz(0.02,0,0),xyz(0,0.02,0),xyz(0,0,0.02),
+                   col_field2d(0,0,"ursula.tif"))
+
+set_surf surf_wall surf(0.1,0.85,0.05,0,col_wall,col_white,200,1)
+set_shape shape_wall z_lt(-3,surf_wall)
+
+set_col col_floor col(rgb(0.8,0.6,0))
+set_surf surf_floor surf(0.5,0.5,0.5,0,col_floor,col_white,50,1)
+set_shape shape_floor y_lt(0,surf_floor)
+
+set_col col_glass col(rgb(0,1,1))
+set_surf surf_glass surf(0.1,0.1,0.1,1.0,col_glass,col_white,200,1.5)
+
+set_shape shape_top trans_y(isect(diff(ellipsoid(1.5,3.0,1.5,surf_glass),
+				       ellipsoid(1.4,2.8,1.4,surf_glass)
+				      ),
+			          y_lt(0,surf_glass)
+			         ),
+		            4
+		           )
+
+set_shape shape_stem isect(y_cyl(0.3,surf_glass),
+			   y_gt(0.00001,surf_glass),
+			   y_lt(1.05,surf_glass)
+			  )
+
+set_shape shape_base isect(y_cyl(1.7,surf_glass),
+			   y_gt(0.00001,surf_glass),
+			   y_lt(0.3,surf_glass)
+			  )
+
+set_shape shape_glass union(shape_top,shape_stem,shape_base)
+
+set_attenuation 1 0.98
+set_ambient rgb(0.2,0.4,0.6)
+add_light xyz( 3, 2, 2) rgb(1,1,1)
+add_light xyz(-3, 3, 2) rgb(1,1,1)
+
+render union(shape_wall,shape_floor,shape_glass)
+       xyz( 0, 2.5, 6)
+       xyz( 0, 0  ,-1)
+       xyz( 0, 1  , 0)
+       rad(30) rad(30) 256 256 3 0
+       "glass.tif,lzw"

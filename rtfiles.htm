@@ -1,0 +1,767 @@
+<HTML>
+<HEAD>
+<TITLE>CSG Ray Tracer file format</TITLE>
+</HEAD>
+<BODY>
+
+<H1>CSG Ray Tracer file format</H1>
+
+<!--...sIntroduction:0:-->
+<H2>Introduction</H2>
+
+<P>The input file is an ASCII text file that defines surface colours and
+shapes etc..
+Such text files may include other text files.
+
+<P>Also, bitmaps may be supplied for 2D texture field maps, and
+<CODE>.tex</CODE> files can be supplied for 3D texture field maps.
+
+<P>The recommended extension for ray-tracer files is <CODE>.rt</CODE>, and
+the Andys Editor language definition should have a reserved comment start of
+"<CODE>;...</CODE>" and end of "", since "<CODE>;</CODE>"'s are used to
+introduce comments.
+<!--...e-->
+<!--...sShading model:0:-->
+<H2>Shading model</H2>
+
+<P>The shading model is as given on p734 of "Computer Graphics, Principles
+and Practice", by Foley, vanDam, Feiner and Hughes.
+
+<P>Each surface has ambient, diffuse, specular and transmissive coefficients,
+called <CODE>ka</CODE>,<CODE>kd</CODE>,<CODE>ks</CODE> and <CODE>kt</CODE>.
+
+<P>It also has a diffuse colour, <CODE>od</CODE> and a specular colour
+<CODE>os</CODE>.
+The specular colour is used to compute highlights with, and is usually
+white-ish for plastic-like surfaces.
+
+<P>
+<PRE>
+  I = Ia * ka * od					Ambient
+    + fatt * Ip * kd * od * cos_nl			Diffuse (per light)
+    + fatt * Ip * ks * os * pow(cos_rv, phong_power)	Specular (per light)
+</PRE>
+
+<P>If no surface is hit, then <CODE>I = Ib</CODE>, where <CODE>Ib</CODE> is a
+background colour.
+<!--...e-->
+<!--...sObjects traceable:0:-->
+<H2>Objects traceable</H2>
+
+<P>The objects that may be traced are half-planes (planes for short),
+spheres and arbitrary quadratics.
+The solid parts are the regions below :-
+
+<P>
+<PRE>
+	Plane:		ax+by+cz+d&lt;=0
+
+	Biplane:	ax+by+cz+d2&lt;=0 and not ax+by+cz+d1&lt;=0
+
+			     2      2      2  2
+	Sphere:		(x-a) +(y-b) +(z-c) -d &lt;=0
+
+			  2   2   2
+	Quadratic:	ax +by +cz +dxy+eyz+fzx+gx+hy+iz+j&lt;=0
+</PRE>
+
+<P>Boolean combinations of the above are allowable too.
+Clearly planes and spheres are just special cases of the general quadratic
+case, when certain coefficents are 0.
+However, such primitives are implemented in the indicated faster ways.
+<!--...e-->
+<!--...sInput file format\47\language:0:-->
+<H2>Input file format/language</H2>
+
+<P>The following types are understood by the tracer :-
+
+<P>
+<PRE>
+	value		A numeric value
+	xyz		A 3 element vector, used for positions and directions
+	rgb		A 3 element colour intensity vector
+	col		A colour (rgb, but can vary dependant on position)
+	surf		A surface structure
+	shape		Any of the traceable shapes
+</PRE>
+
+<P>The following functions (rvalues) are provided.
+Variables are of the type value unless of the form <CODE>a_xxx</CODE>, in
+which case they are of type <CODE>xxx</CODE> :-
+
+<P>
+<PRE>
+	radians = rad(degrees)
+		Converts an angle in degrees to the value in radians
+
+	a_xyz = xyz(x,y,z)
+		Returns a vector with the 3 specified values
+
+	a_xyz = trans_x(a_xyz,dx)
+		Returned vector has x component dx bigger.
+		Similar functions trans_y and trans_z also exist
+
+	a_xyz = trans(a_xyz,a_xyz)
+		Returns sum of 2 vectors.
+
+	a_xyz = scale_x(a_xyz,factor)
+		Returns a vector, scaled by factor in x direction.
+		Similar functions scale_y and scale_z also exist
+
+	a_xyz = scale(a_xyz,a_xyz_factor)
+		Returns a vector, scaled by factor
+
+	a_shape = rot_x(a_xyz,angle)
+		Returns a vector rotated by angle around x axis
+		Angle is specified in radians
+		Similar functions rot_y and rot_z exist
+
+	a_rgb = rgb(red,green,blue)
+		Makes an RGB colour value out of 3 components
+		eg: set_col shiny_red surf(0.2,0.6,0.2,0.0,
+					   rgb(1.0,0.0,0.0),
+					   rgb(1.0,1.0,1.0),
+					   200,1)
+</PRE>
+
+<P>Note that reserved words <CODE>trans_x</CODE>, <CODE>trans</CODE>,
+<CODE>scale_x</CODE>, <CODE>scale</CODE>, <CODE>rot_x</CODE> and related
+<CODE>y</CODE> and <CODE>z</CODE> forms here operate on vectors and return
+vectors.
+Later, we will see that the same words also operate on shapes to give
+new shapes.
+Which is mean't is easily determined from the context.
+
+<P>A colour is something that is defined to be a given RGB value for a given
+point in space.
+Since colours can be defined in terms of colours, there is conceptually a
+colour 'tree'.
+When the root colour is evaluated, it is passed 3 parameters
+(known as <CODE>p0</CODE>,<CODE>p1</CODE> and <CODE>p2</CODE>) and these are
+the x,y and z of the intersection point on the surface of the shape.
+
+<P>
+<PRE>
+	a_col = col(a_rgb)
+		Makes a colour that is the same regardless of position.
+
+	a_col = col_field2d(bx,by,"fn.bmp")
+		Makes a colour that takes the passed in p0 and p1 (ignoring
+		p2) and uses (p0+bx,p1+by) to index a bitmap specified.
+		On its own, such a colour can only map a bitmap across the
+		x-y plane. With this primitive (and col_remap) bitmaps may
+		be mapped over the surfaces of objects.
+		eg: set_col floor_col col_field2d(0,0,"tiles.bmp")
+
+	a_col = col_field3d(bx,by,bz,"fn.tex")
+		Makes a colour that takes the passed in p0,p1, and p2 and
+		uses (p0+bx,p1+by,p2+bz) to index the texture-map file.
+		On its own, such a colour can only map a texture-map that
+		is parallel to the x,y and z axes.
+
+	a_col = col_interp0(a_col_arg)
+		Perform linear interpolation of p0 argument.
+		col_interp1 and col_interp2 also exist.
+		eg: if p0 was 2.5, then evaluates a_col_arg with p0 at 2.0
+		and also at 3.0 and finds the average colour.
+		eg: set_col floor_col col_interp0(
+					col_interp1(
+					  col_field2d(0,0,"tiles.bmp")))
+
+	a_col = col_remap(a_xyz_base,
+			  a_xyz_v0,
+			  a_xyz_v1,
+			  a_xyz_v2,a_col_arg)
+		The (p0,p1,p2) are taken to be cartesian xyz coordinates
+		when this colour is evaluted. New values p0',p1' and p2' are
+		computed where a_xyz_base + p0' * a_xyz_v0 + p1' * a_xyz_v1 +
+		p2' + a_xyz_v2 = (p0,p1,p2).
+		ie: (p0,p1,p2) is transformed to a new coordinate space, based
+		at a_xyz_base in the old coordinate space, with axes given by
+		vectors a_xyz_v0, a_xyz_v1 and a_xyz_v2. The new
+		coordinate is passed to a_col_arg when it is evaluated.
+		When a colour is rotated/translated (when the shape it is used
+		by is rotated/translated, this colour is (ie: these vectors
+		are) is adjusted to move with the shape.
+		Similarly, when a shape is scaled, its colour is scaled too.
+		This will cause the base and basis vectors to be scaled too.
+
+	a_col = col_cyl(lond,rd,hd,a_col_arg)
+		The (p0,p1,p2) are taken to be cartesian xyz coordinates.
+		The x-y plane can be considered the equator.
+		The z axis can be considered the polar axis.
+		A new p0 is computed as the longitude / lond.
+		A new p1 is computed as the radius / rd.
+		A new p2 is computed as the height (= original p2) / hd.
+		The values are passed down to a_col_arg.
+		This is used to perform cylindrical polar texture maps.
+		eg: set_col x col_remap(xyz(1,2,3),xyz(1,0,0),xyz(0,1,0),
+				col_cyl(rad(1),1,1,
+				  col_mat3d(1,0,0,
+				            0,0,1,
+				            0,1,0,
+				    col_field2d(0,0,"360x100.bmp"))))
+
+	a_col = col_sph(lond,latd,rd,a_col_arg)
+		The (p0,p1,p2) are taken to be cartesian xyz coordinates.
+		The x-y plane can be considered the equator.
+		The z axis can be considered the polar axis.
+		A new p0 is computed as the longitude / lond.
+		A new p1 is computed as the latitude / latd.
+		A new p2 is computed as the radius / rd.
+		The values are passed down to a_col_arg.
+		This is used to perform spherical polar texture maps.
+		eg: set_col earth_col col_remap(xyz(0,0,0),xyz(1,0,0),xyz(0,1,0),
+					col_sph(rad(1),rad(1),1,
+					  col_field2d(0,90,"360x180.bmp")))
+		
+	a_col = col_nomove(a_col_arg)
+		When objects of a given colour are translated, rotated or
+		scaled, as well as the objects shape being moved, the objects
+		colour is moved too. Unless this primitive is used.
+		eg: set_col col_dep_on_scene_not_object col_nomove(a_col_arg)
+
+	a_col = col_mat2d(a00,a01,
+			  a10,a11,a_col_arg)
+		2x2 matrix modification of (p0,p1,p2) and chain on
+		q0 = a00 * p0 + a01 * p1
+		q1 = a10 * p0 + a11 * p1
+		Evaluate a_col_arg with q0,q1,p2
+		This allows you arbitrarily remap p0,p1,p2 in terms of
+		one another. It is useful for mapping textures at obscure
+		angles around shapes, and changing the ordering of p0 and p1
+
+	a_col = col_mat3d(a00,a01,a02,
+			  a10,a11,a12,
+			  a20,a21,a22,a_col_arg)
+		3x3 matrix modification of (p0,p1,p2) and chain on
+		q0 = a00 * p0 + a01 * p1 + a02 * p2
+		q1 = a10 * p0 + a11 * p1 + a12 * p2
+		q2 = a20 * p0 + a21 * p1 + a22 * p2
+		Evaluate a_col_arg with q0,q1,q2
+		Similar uses as above.
+		Particularly useful with col_cyl.
+		eg: set_col a_col col_remap(xyz(0,0,0),xyz(1,0,0),xyz(0,1,0),
+		                    col_cyl(rad(1),1,1,
+                                      ; here p0=longitude,p1=radius,p2=height
+		                      col_mat3d(1,0,0,
+		                                0,0,1,
+		                                0,1,0,
+		                        ; here p0=longitude,p1=height,p2=radius
+		                        col_field2d(0,90,"bitmap.bmp"))))
+</PRE>
+
+<P>The structures above give the ability to map bitmaps anywhere in
+space - for example, on the sides of objects.
+Also the ability to do 3d texture mapping.
+Also interpolation between pixels in texture maps is optional in any or all
+of the directions in the texture map.
+Cylindrical polar and spherical polar mapping may be performed.
+Colour fields may move with the object when it is moved, or stay fixed
+against a given reference point (ie: the backdrop).
+
+<P>It is admitted that this is complicated, and a few worked examples are
+given later.
+
+<P>Every shape has its surfaces defined as the combination of various
+coefficients and ambient and diffuse colours.
+Phong power and refractive index also contributes to the overall effect.
+
+<P>
+<PRE>
+	a_surf = surf(ka,kd,ks,kt,a_col_od,a_col_os,
+		      phong_power,refractive_index)
+		Makes a surface colour structure
+		Supply ambient, diffuse, specular and transmissive coeffs.
+		Supply diffuse and specular colours
+		Supply phong power and refractive index
+
+	a_shape = plane(a,b,c,d,a_surf)
+		Returns a half-plane solid for ax+by+cz+d&lt;=0
+		This primitive is traced quicker than a general quadratic
+
+	a_shape = x_lt(x,a_surf)
+		Returns a shape solid for x &lt;= some x value
+		Similar functions x_gt, y_lt, y_gt, z_lt and z_gt also exist
+
+	a_shape = biplane(a,b,c,d1,d2,a_surf)
+		Returns a half-plane solid for ax+by+cz+d1&gt;0 and ax+by+cz+d2&lt;=0
+		This primitive is traced quicker than a general quadratic,
+		and is also traced quicker than the intersection of 2 planes.
+
+	a_shape = x_in(x1,x2,a_surf)
+		Returns a shape solid for x in x1 to x2.
+		Similar functions y_in and z_in also exist.
+
+	a_shape = sphere(r,a_surf)
+		Returns a solid sphere, radius r, at the origin
+		This primitive is traced quicker than a general quadratic
+
+	a_shape = ellipsoid(rx,ry,rz,a_surf)
+		Returns an ellipsoid at the origin with given radii
+
+	a_shape = x_ell_cyl(ry,rz,a_surf)
+		Returns a elliptical cylinder along the x axis with given radii
+		Similar functions y_ell_cyl, z_ell_cyl also exist
+
+	a_shape = x_cyl(r,a_surf)
+		Returns a cylinder along the x axis with given radius
+		Similar functions y_cyl, z_cyl also exist
+
+	a_shape = x_ell_cone(ky,kz,a_surf)
+		Returns a elliptical cone along the x axis with given
+		gradients to the y and z axis
+		Similar functions y_ell_cone, z_ell_cone also exist
+
+	a_shape = x_cone(k,a_surf)
+		Returns a cone along the x axis with given gradient
+		Similar functions y_cone, z_cone also exist
+
+	a_shape = quad(a,b,c,d,e,f,g,h,i,j,a_surf)
+		Returns a general quadratic as described above
+		If a to f are 0, a half-plane results
+		If d to i are 0, and a=b=c sphere around the origin results
+		In these two cases, the functions above are traced faster
+
+	a_shape = trans_x(a_shape,x)
+		Returns a copy of the shape, translated by x in the x direction
+		Similar functions trans_y and trans_z also exist
+
+	a_shape = trans(a_shape,a_xyz)
+		Returns a copy of the shape, translated by a given vector
+		Note:	trans(a_shape,xyz(x,y,z)) =
+			trans_x(trans_y(trans_z(a_shape,z),y),x)
+
+	a_shape = scale_x(a_shape,factor)
+		Returns a copy of the shape, scaled by factor in x direction.
+		(A sphere scaled in this way becomes a general quadratic).
+		Similar functions scale_y and scale_z also exist
+
+	a_shape = scale(a_shape,a_xyz_factor)
+		Returns a copy of the shape, scaled in x, y and z by amounts.
+		(A sphere scaled unequally becomes a general quadratic).
+		(A sphere scaled equally remains a sphere).
+
+	a_shape = rot_x(a_shape,angle)
+		Returns a copy of the shape, rotated by angle about the x axis
+		Angle is specified in radians
+		Similar functions rot_y and rot_z exist
+
+	a_shape = union(a_shape,a_shape)
+		Returns a shape which is the CSG union of the two shapes
+		Similar functions isect, diff, sdiff and extent exist
+		sdiff means symmetric difference (like XOR)
+		extent is explained later
+
+	a_shape = resurf(a_shape,a_surf)
+		Returns a shape with the same geometry as before, but with
+		different surface characteristics
+</PRE>
+
+<P>All the commands that end in '<CODE>,a_surf)</CODE>' may have it omitted.
+The tracer just surfaces the shape in a grey colour.
+This feature is provided to avoid the need to specify surfaces for all the
+facets (subshapes) of a shape, if you know you are going to resurface it
+later anyway.
+
+<P>The commands supported in the language take a number of rvalues as arguments.
+These arguments are space seperated.
+
+<P>
+<PRE>
+	set_value a_new_value a_value
+		Defines a variable a_new_value to be the value a_value
+		eg: set_value door_width 34.5
+
+	set_xyz a_new_xyz a_xyz
+		Defines a vector
+		eg: set_xyz viewpoint xyz(1.0,3.5,10.2)
+
+	set_rgb a_new_rgb a_rgb
+		Defines a RGB colour vector
+		eg: set_rgb yellow rgb(1,1,0)
+
+	set_col a_new_col a_col
+		Defines a new colour structure
+
+	set_surf a_new_surf a_surf
+		Defines a new surface structure
+		eg: set_col shiny_red surf(0.2,0.6,0.2,0.0,
+					   col(rgb(1.0,0.0,0.0)),
+					   col(rgb(1.0,1.0,1.0)),
+					   200,1)
+
+	set_shape a_new_shape a_shape
+		Defines a variable a_new_shape to be the shape a_shape
+		a_shape is anything that evalues to a shape
+		eg: set_shape shell diff(sphere(2,a_surf),sphere(1,a_surf))
+</PRE>
+
+<P>If you have set a variable using the above, then it can itself be used
+as a rvalue.
+
+<P>
+<PRE>
+eg: set_shape ball sphere(2.0,greeny_blue)
+    set_shape earth ball
+</PRE>
+
+<P>Other commands are as follows :-
+
+<P>
+<PRE>
+	set_attenuation af1 af2
+		Set light intensity with distance coefficents
+		The nature of this equation and its parameter is arbitrary
+		This function is likely to change later
+		Defaults to 1.0 and 0.9 at present
+		The 0.9 means that light intensity fades to 90%, per unit
+		distance travelled.
+
+	set_background a_rgb
+		Sets background light intensity
+		Defaults to rgb(0,0,0) at present
+		Used when no object is struck by light ray.
+
+	set_ambient a_rgb
+		Sets ambient light intensity
+		Defaults to rgb(0,0,0) at present
+		eg: set_ambient shiny_red
+
+	add_light a_xyz a_rgb
+		Adds a light at specified position of given intensity
+		No lights exist before the first add_light found
+		Lights cannot be removed in present implementation
+		eg: add_light xyz(1,1,1) rgb(1,1,0)
+
+	render shape eye forward up hangle vangle hpixels vpixels depth
+	  rendertype "filename"
+		Renders a view of shape
+		View is from the eye position, looking forward
+		The up vector used to decide which way is up
+		hangle and vangle specify angles of viewing pyramidal volume
+		hpixels and vpixels specify size of output bitmap
+		extra depth to recurse to
+		rendertype is 0 for a typical simple render operation.
+		rendertype is 1 for an anti-aliased trace.
+		"filename" is the output bitmap filename
+
+	visdiff a_value
+		Set minimum visible difference value used in anti-aliasing
+		computation. Default is 1.0/255.0.
+
+	include "filename.rt"
+		Causes the given file to be read in and processed.
+		Ideal for when you put an object in an .rt file and then
+		wish to use it from another .rt file.
+</PRE>
+<!--...e-->
+<!--...sA complicated example:0:-->
+<H2>A complicated example</H2>
+
+<P>We have a bitmap of the surface of the earth.
+It is 360 x 180 pixels and pixel (180,90) is longitude 0 degrees at the
+equator.
+
+<P>
+<PRE>
+	set_col col1 col_field2d(180,90,"map.bmp")
+</PRE>
+
+<P>When <CODE>col1</CODE> is evaluated <CODE>p0</CODE> and <CODE>p1</CODE> are
+indexed into the bitmap as x and y to give the colour of the earth at a
+longitude of <CODE>p0</CODE> and latitude of <CODE>p1</CODE>.
+A half-plane aligned along the x-y plane drawn in this colour would show
+a map of the world.
+
+<P>
+<PRE>
+	set_col col2 col_interp0(col_interp1(col1))
+</PRE>
+
+<P>When you look close-up at something drawn in colour <CODE>col1</CODE>,
+you may be able to see the pixel boundarys.
+<CODE>col2</CODE> does not suffer from this so badly, as linear interpolation
+has been used to smooth the pixels in both directions.
+
+<P>
+<PRE>
+	set_col col3 col_sph(rad(1),rad(1),1,col2)
+</PRE>
+
+<P>When <CODE>col3</CODE> is evaluated <CODE>p0</CODE>,<CODE>p1</CODE> and
+<CODE>p2</CODE> are mapped from x,y,z coordinates to a longitude, latitude and
+radius from the origin.
+The longitude is divided by <CODE>rad(1)</CODE> to give a <CODE>p0</CODE>
+which is the multiple of 1 degree increments.
+Similarly for the latitude for <CODE>p1</CODE>.
+The radius is divided by 1 (ignored) for <CODE>p2</CODE>.
+ie: we will chain-on to evaluate <CODE>col1</CODE> with <CODE>p0</CODE> equal
+to the number of degrees east of Greenwich and <CODE>p1</CODE> equal to the
+number of degrees above the equator.
+A sphere at the origin drawn in this colour would display a map of the world
+drawn on the sphere, much like a real globe.
+
+<P>
+<PRE>
+	set_surf surf1 surf(...,col3...)
+		; other arguments to surf omitted for clarity
+	set_shape shape1 sphere(1.0,surf2)
+</PRE>
+
+<P>This defines a sphere, at the origin, which is drawn in a colour that is a
+map of the world.
+
+<P>
+<PRE>
+	set_shape shape2 trans(shape1,xyz(0.5,0.1,0.2))
+</PRE>
+
+<P>This the same as <CODE>shape1</CODE>, only the origin of the globe is
+at (0.5,0.1,0.2).
+The colour of this shape has also moved so that the continents of the world
+still sit on the correct parts of the surface of the sphere.
+
+<P>
+<PRE>
+	set_surf surf2 surf(...,col_nomove(col3),...)
+	set_shape shape3 sphere(1.0,surf2)
+</PRE>
+
+<P>This is an awkward shape.
+Although this would render identically to <CODE>shape1</CODE>, should you
+apply the <CODE>trans()</CODE> or <CODE>rot_x()</CODE> operator to it, only
+the shape, not the 2d bitmap texture would move!
+<!--...e-->
+<!--...sThe \39\extent\39\ CSG operator:0:-->
+<H2>The 'extent' CSG operator</H2>
+
+<P>Operators such as <CODE>union(shape_a,shape_b)</CODE> conceptually tell the
+ray-tracer to intersect a ray with shapes <CODE>shape_a</CODE> and
+<CODE>shape_b</CODE>.
+This gives an intersection list which says where the ray enters and leaves
+<CODE>shape_a</CODE>, and another which says where the ray enters and leaves
+<CODE>shape_b</CODE>.
+By combining these intersection lists we can deduce where the ray enters and
+leaves the CSG union of shapes <CODE>shape_a</CODE> and <CODE>shape_b</CODE>.
+
+<P>In practice the ray tracer can make certain optimisations.
+For example if we are tracing <CODE>isect(shape_a,shape_b)</CODE> and the
+intersection list generated for one of the shapes is empty (does not go
+through anything) then the result must also be the empty set.
+ie: nothing intersected with something is nothing.
+
+<P>This type of optimisation allows the ray-tracer to avoid calculating ray
+intersections for certain parts of the shape tree.
+
+<P>The <CODE>extent(shape_a,shape_b)</CODE> operator only intersects with
+<CODE>shape_a</CODE>, if the intersection with <CODE>shape_b</CODE> is non
+null.
+This is particularly useful when <CODE>shape_b</CODE> is made to enclose
+<CODE>shape_a</CODE>, and <CODE>shape_a</CODE> is difficult (complicated) to
+intersect.
+
+<P>For example, if I had a scene with a dice (made of many primitives) in one
+small part of it.
+I could use <CODE>extent(shape_dice,shape_enclosing_sphere)</CODE> to speed
+up the tracing.
+The assumption here is that a sphere is much quicker to calculate
+intersections for than some complicated CSG shape such as a dice (which may
+have 6 half-plane faces, a rounding sphere and 1+2+3+4+5+6 spheres for spots
+subtracted etc!).
+The other assumption is that most of the time we will not be tracing the part
+of the picture with the dice in.
+<!--...e-->
+<!--...sAntialiasing:0:-->
+<H2>Antialiasing</H2>
+
+<P>This ray tracer has 2 modes (or rendertypes) in which it can trace pictures.
+
+<P>Mode 0 is a simple point sample trace, which as a result can exhibit
+severe aliasing.
+
+<P>Mode 1 is an antialiased trace, which significantly cuts down on aliasing.
+Because the Whitted adaptive supersampling technique is used, the penalty of
+tracing additional rays is only paid where adjacent pixels differ notably.
+'Notably' is a little vague, and is specified by the <CODE>visdiff</CODE>
+command.
+
+<P>Raytracing produces floating point intensities for each ray traced.
+These must be mapped to byte values to be written into the file.
+So the range of intensities from 0.0 to 1.0 map to byte values 0 to 255.
+
+<P>Therefore the minimum visible difference is 1.0/255.0.
+This is the default <CODE>visdiff</CODE> value.
+
+<P>However, if the 2 least significant bits of a byte are not required to be
+significant, then the <CODE>visdiff</CODE> value can be raised to 1.0/63.0.
+If the final output file is to be displayed on VGA hardware, this would be
+ideal.
+
+<P>Raising the <CODE>visdiff</CODE> value reduces the number of extra rays
+that are traced due to adjacent samples being different colours, because
+fewer adjacent will exceed the higher <CODE>visdiff</CODE> difference value.
+One testcard requires 13x the basic cost to trace with the default
+<CODE>visdiff</CODE>, but only 6x with the higher <CODE>visdiff</CODE>
+value above.
+<!--...e-->
+<!--...sEscher perspective rendering:0:-->
+<H2>Escher perspective rendering</H2>
+
+<P>By adding in 10 to the rendertype described above it is possible to tell
+the Ray Tracer to trace in the wide (or should I say tall) angle style of
+projection that M.C.Escher did in his "Above and Below" and "House of Stairs"
+woodcuts.
+<!--...e-->
+<!--...sLimitations of the refraction system:0:-->
+<H2>Limitations of the refraction system</H2>
+
+<P>I unconditionally admit that my CSG refraction code is a hack.
+
+<P>In a CSG system, a point in space is empty or solid.
+To model refraction effectively a point in space is empty (a transmissive
+medium with a refractive index) or solid (non-transmissive medium).
+This means we should have many classifications of points in space.
+
+<P>It is difficult to define boolean CSG operations on multivalue types. eg:
+what does it mean if a medium of index 1.5 intersects a medium of index 1.3?
+
+<P>This program implements refraction by making a set of assumptions.
+Firstly, it is assumed that the refractive index of empty space is 1.0.
+Certain solid objects can be considered to have other indexes.
+
+<P>All the surfaces that define the boundary of a transmissive shape should
+have a non-zero transmissive coefficient (ideally the same).
+This states how much of the light from the other side of the shape is to be
+allowed through.
+If the coefficients are not the same, you can produce shapes that look
+brighter from some directions.
+
+<P>Also the surfaces should all have a refractive index set (ideally the same).
+This refractive index is used to bend rays into the shape, and out again.
+If the refractive indexes are not the same, you can produce shapes that have
+different optical properties when viewed from certain directions.
+This actually is contradictory to the physics being modelled!
+
+<P>When a ray strikes a transmissive surface the following additional work is
+done.
+If total external reflection occurs then an additional reflected ray is
+spawned (this is unlikely, as it implies the tranmissive solid has a
+refractive index &lt;1.0, and most things don't - glass=1.5, water=1.3 etc.).
+Otherwise a refracted ray is sent through the solid until it emerges at the
+far side.
+If total internal reflection occurs at the far side, the ray is
+bounced back into the object again.
+Eventually the ray is refracted out into empty space.
+The emerging rays intensity is of course, scaled by the additional distance
+spent going through the solid object, and by <CODE>kt</CODE> of each surface
+the ray enters the shape by.
+
+<P>There is a limit to the number of internal bounces allowed due to total
+internal reflection.
+This limit is around 10 bounces. If this limit is exceeded the refraction
+computation is aborted.
+
+<P>Due to the way CSG systems merge shapes into one compound shape, certain
+problems can be produced.
+For example, if you place a large glass slab onto a smaller red block, you
+will find that the side faces of the red block, seen from above through the
+glass block are red, but the top of the red block is not!
+
+<P>Why?
+Well the the two blocks may actually touch to form a composite CSG object.
+In the first case, the ray enters the composite object through a glass
+surface, leaves the solid via a glass surface, and strikes a red side surface.
+In the other case, the ray enters through a glass surface, but leaves through
+the bottom red surface of the composite CSG shape.
+The colour returned is whatever is beneath the red block.
+ie: in the diagram, there is no surface defined at point X to give the
+expected view of the red top of the block below the glass block.
+
+<P>
+<PRE>
+         ray 1       ray 2
+            \          |
+     gggggggg\ggggggggg|gggggggggggg
+     g        \        |           g    &lt;--- Glass block
+     gggggggggg\ggg    X    gggggggg
+                \ r    |    r
+                 \r    |    r           &lt;--- Red block
+                  rrrrr|rrrrr
+                       |
+                   ooooooooo            &lt;--- Other shape
+</PRE>
+
+<P>The simple workaround to this problem is to ensure that the glass block is
+just the tiniest amount above the red block, so that the rays leave the glass
+before hitting the red block.
+<!--...e-->
+<!--...sBitmap formats supported:0:-->
+<H2>Bitmap formats supported</H2>
+
+<P>The code will always write out 24 bit bitmaps.
+When reading, (for texture maps etc.) 1,4,8 or 24 bit bitmaps can be used.
+
+<P>This program utilises the services of the Bitmap Rosetta Stone, the
+Generalised Bitmap Module (or GBM for short).
+
+<P>GBM supports the reading and writing of a large number of bitmap file formats
+in a manner that isolates the calling program (RT) from the format details.
+<!--...e-->
+<!--...sNature of bitmap bits:0:-->
+<H2>Nature of bitmap bits</H2>
+
+<P>The bitmap bits both read and written are written with value proportional to
+physical brightness.
+This means that for OS/2 PM for example, these should be mapped to/from the
+L* cyclometric colour space.
+Similarly, when displaying the bitmaps on a specific monitor directly, the
+pixels should be mapped to a gamma corrected colour space designed to
+counteract the monitors gamma.
+In reality these mappings are often skipped, as the results are very similar.
+<!--...e-->
+<!--...s3D texture map files:0:-->
+<H2>3D texture map files</H2>
+
+<P>In the absence of a readily available 3D texture map format, I invented one.
+The 3D texture map file format is inspired by the OS/2 2.0 bitmap formats :-
+
+<P>
+<PRE>
+	typedef unsigned char byte; /* 8 bit number */
+	typedef unsigned long dword; /* Intel ordered 32 bit number */
+	typedef struct { byte b, g, r, dummy; } PAL; /* Palette entry */
+	typedef struct { byte i [(width*bits_per_voxel+31)/32*4]; } SCAN;
+
+	typedef struct
+		{
+		dword 0x1a584554;		/* Magic number */
+		dword width, height, depth;	/* x,y and z dimensions */
+		dword bits_per_voxel;		/* 1, 4, 8 or 24 only */
+		PAL pals [(1&lt;&lt;bits_per_voxel)&amp;0x1ff];
+		SCAN scans [depth][height];
+		} TEXFILE;
+</PRE>
+
+<P>The expression inside the [] in the pals array converts 1 -&gt; 2,
+4 -&gt; 16, 8 -&gt; 256 and 24 -&gt; 0, ie: it converts the
+<CODE>bits_per_voxel</CODE> into number of palette entrys present.
+Much like OS/2 2.0 bitmaps.
+
+<P>The expression inside the SCAN definition ensures each scanline is padded
+to the next biggest 32 bit boundary.
+Also like OS/2 2.0 bitmaps.
+
+<P>Scan lines are stored leftmost pixel to rightmost, and they are stored one
+after another starting at lowest to highest.
+Again, also like OS/2 2.0 bitmaps.
+Finally complete 2D images are stored one after each other lowest depth first.
+<!--...e-->
+<!--...sAuthor:0:-->
+<HR>
+This documentation was written by the RT author, Andy Key
+<ADDRESS>ak@nyangau.fsnet.co.uk</ADDRESS>
+<!--...e-->
+
+</BODY>
+</HTML>

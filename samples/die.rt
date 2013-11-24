@@ -1,0 +1,63 @@
+;
+; A die
+;
+
+set_surf surf_cube surf(0.2,0.6,0.2,0,col(rgb(1.0,0.0,0.0)),col(rgb(1.0,1.0,1.0)),200,1)
+set_surf surf_ball surf(0.1,0.7,0.2,0,col(rgb(1.0,1.0,0.5)),col(rgb(1.0,1.0,1.0)),150,1)
+set_surf surf_spot surf(0.2,0.6,0.2,0,col(rgb(1.0,1.0,1.0)),col(rgb(1.0,1.0,1.0)),200,1)
+
+set_shape shape_cube isect(x_in(-1.0,1.0,surf_cube),
+			   y_in(-1.0,1.0,surf_cube),
+			   z_in(-1.0,1.0,surf_cube))
+
+set_shape shape_ball sphere(1.55,surf_ball)
+set_shape shape_spot sphere(0.2,surf_spot)
+
+set_shape shape_spots1       trans(shape_spot,xyz(-1.0, 0.0, 0.0))
+
+set_shape shape_spots2 union(trans(shape_spot,xyz( 0.6,-1.0, 0.6)),
+			     trans(shape_spot,xyz(-0.6,-1.0,-0.6)))
+
+set_shape shape_spots3 union(trans(shape_spot,xyz( 0.0, 0.0, 1.0)),
+			     trans(shape_spot,xyz( 0.6, 0.6, 1.0)),
+			     trans(shape_spot,xyz(-0.6,-0.6, 1.0)))
+
+set_shape shape_spots4 union(trans(shape_spot,xyz( 0.6, 0.6,-1.0)),
+			     trans(shape_spot,xyz( 0.6,-0.6,-1.0)),
+			     trans(shape_spot,xyz(-0.6, 0.6,-1.0)),
+			     trans(shape_spot,xyz(-0.6,-0.6,-1.0)))
+
+set_shape shape_spots5 union(trans(shape_spot,xyz( 0.6, 1.0, 0.6)),
+			     trans(shape_spot,xyz( 0.6, 1.0,-0.6)),
+			     trans(shape_spot,xyz(-0.6, 1.0, 0.6)),
+			     trans(shape_spot,xyz(-0.6, 1.0,-0.6)),
+			     trans(shape_spot,xyz( 0.0, 1.0, 0.0)))
+
+set_shape shape_spots6 union(trans(shape_spot,xyz( 1.0, 0.6, 0.6)),
+			     trans(shape_spot,xyz( 1.0, 0.6,-0.6)),
+			     trans(shape_spot,xyz( 1.0, 0.0, 0.6)),
+			     trans(shape_spot,xyz( 1.0, 0.0,-0.6)),
+			     trans(shape_spot,xyz( 1.0,-0.6, 0.6)),
+			     trans(shape_spot,xyz( 1.0,-0.6,-0.6)))
+
+set_shape shape_spots union(shape_spots1,shape_spots2,shape_spots3,
+			    shape_spots4,shape_spots5,shape_spots6)
+
+set_shape shape_dice isect(diff(shape_cube,shape_spots),shape_ball)
+
+set_attenuation 1.0 0.9
+set_ambient rgb(0.0,0.0,0.0)
+
+add_light xyz( 2.0, 2.0, 2.0) rgb(2.5,2.5,2.5)
+add_light xyz(-2.0,-2.0, 2.0) rgb(2.5,2.5,2.5)
+
+set_shape r rot_x(shape_dice,0.4)
+set_xyz   e xyz( 0.0, 0.0, 4.0)
+set_xyz   f xyz( 0.0, 0.0,-1.0)
+set_xyz   u xyz( 0.0, 1.0, 0.0)
+
+; Render using usual basic render
+render rot_y(r,rad( 30)) e f u rad(35) rad(35) 200 200 0 0 "die0.tif,lzw"
+
+; Render an anti-aliased version using Whitted adaptive supersampling
+render rot_y(r,rad( 30)) e f u rad(35) rad(35) 200 200 0 1 "die1.tif,lzw"

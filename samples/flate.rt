@@ -1,0 +1,50 @@
+;
+; Draw the flat-earthers 'globe', ie: a cube with a world map texture mapped
+; around it.
+;
+; map.gif is a bitmap of size 360x180 where each pixel corresponds to a
+; degree of longitude and latitude. 0 deg lon., 0 deg lat. is at pixel (180,90).
+;
+; Since we may be rendering a big picture, one pixel in the map may expand to
+; cover several pixels in the final picture. To reduce the visibility of this,
+; we use linear interpolation over the map bitmap.
+;
+; We use col_remap to ensure that when a ray strikes the globe the intersection
+; coordinates are computed relative to the centre of the colour =(0,0,0).
+; This corresponds to the centre of the globe and if the globe is translated
+; or rotated, the colour mapping will move with it.
+;
+
+set_col col_white col(rgb(1,1,1))
+
+set_col col_globe col_remap(xyz(0,0,0),xyz(0,0,1),xyz(1,0,0),xyz(0,1,0),
+                    col_sph(rad(1),rad(1),1,
+                      col_interp0(
+                        col_interp1(
+                          col_field2d(180,90,"map.gif")))))
+
+set_surf surf_globe surf(0.4,0.9,0.1,0,col_globe,col_white,200,1)
+
+set_shape shape_globe isect(x_gt(-0.6,surf_globe),x_lt(0.6,surf_globe),
+                            y_gt(-0.6,surf_globe),y_lt(0.6,surf_globe),
+                            z_gt(-0.6,surf_globe),z_lt(0.6,surf_globe))
+
+set_attenuation 1 0.98
+set_ambient rgb(0.2,0.2,0.2)
+add_light xyz(25,10,25) rgb(2,2,2)
+
+set_shape r shape_globe
+set_xyz e xyz( 0, 1, 3)
+set_xyz f xyz( 0,-1,-3)
+set_xyz u xyz( 0, 3,-1)
+set_value ax rad(20)
+set_value ay rad(20)
+set_value cx 200
+set_value cy 200
+
+render rot_y(r,rad(  0)) e f u ax ay cx cy 0 0 "flate000.tif,lzw"
+;
+; Note: clearly we can add extra render statements for other rotation values.
+; If we do this we can trace an entire animation of the earth spinning.
+; Just step the rad(0) to rad(350) in steps of 10 for example.
+;
